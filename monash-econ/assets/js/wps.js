@@ -1,17 +1,11 @@
 $(document).ready(function() {
-
-    // function listPapers() {
-      
-    // }
-
     const formatNumber = n => ("0" + n).slice(-2);
-    const base_url = "http://monash-econ.s3-ap-southeast-2.amazonaws.com/metadata.json";
     let wpn = ""
     const date = new Date();
     const maxAllowedSize = 5 * 1024 * 1024; // 5 MB
     let currentYear = date.getFullYear(); 
     let currentPapers = 0;
-    let prefix = `RePEc/ajr/sodwps/${currentYear}-`;
+    let prefix = `RePEc/mos/moswps/${currentYear}-`;
     // AWS credentials
     const bucketName = "monash-econ-wps";
     const bucketRegion = "ap-southeast-2";
@@ -56,39 +50,6 @@ $(document).ready(function() {
         $("#wpn").val(wpn)
       }
      });
-
-    // $.ajax({
-    //   type: "GET",
-    //   // XDomainRequest protocol must be the same scheme as the calling page
-    //   url: base_url, // ('https:' == document.location.protocol ? 'https://' : 'http://') +
-    //   dataType: "json",
-    //   success: function(data) {
-    //     // console.log(data)
-    //     // check if JSON file is stringified
-    //     if (typeof data == 'string'){
-    //       data = JSON.parse(data)
-    //     }
-    //     // console.log(data)
-    //     currentYear = date.getFullYear();
-    //     if (data.papers.length > 0){
-    //       let currentPapers = data.papers.filter(a=>a.year==currentYear);
-    //       wpn = currentYear + "-" + formatNumber(currentPapers.length+1) // note: only handles 01-99
-    //     } 
-    //     else{
-    //       wpn = currentYear + "-" + "01"
-    //     }
-    //     $("#wpn").attr("placeholder", wpn); // set the placeholder
-    //     $("#wpn").val(wpn)
-    //   },
-    //   error: function(error) {
-    //     console.log(`Error ${error}`)
-    //     $("#errorModal .modal-body").html("");
-    //     $('#errorModal .modal-body').prepend(`<p><strong>Oops!</strong></p><p>An error has occurred. Please try again later.</p>`)
-    //     $("#spinner").remove();
-    //     $('button').prop('disabled', false);
-    //     $('#errorModal').modal('show');
-    //   }
-    //   });
       
       // Add the following code if you want the name of the file appear on select
       $(".custom-file-input").on("change", function() {
@@ -161,8 +122,8 @@ $(document).ready(function() {
                       let data = {
                         wpn : $('#wpn').val(),
                         title: $('#title').val(),
-                        email: $('#email').val(),
-                        author: author.join(', '),
+                        // email: $('#email').val(),
+                        author: author.join('|'),
                         keyword: $("#keyword").tagsinput('items').join(', '),
                         jel_code:  $('#jel').val(),
                         abstract: encodeURIComponent($('#abstract').val()),
@@ -171,7 +132,7 @@ $(document).ready(function() {
                     }
 
                 $.ajax({
-                    url: "https://5v0dil8zg2.execute-api.ap-southeast-2.amazonaws.com/v1/upload",
+                    url: "https://ogi4iv7vei.execute-api.ap-southeast-2.amazonaws.com/v1/upload",
                     type: "POST",
                     contentType: 'application/json',
                     dataType: 'json',
@@ -179,13 +140,23 @@ $(document).ready(function() {
                     processData: true,
                     data: data,
                     success: function (response) {
-                      console.log(response)      
-                      $("#messageModal .modal-body").html("");
-                      $('#messageModal .modal-body').prepend(`<p><strong>Done!</strong></p><p>Your paper has been successfully submitted. Here's the link below:</p><p><a href="${response.body.url}">${response.body.url}</a></p>`)
+                      //  incase Lambda returns an error
+                      console.log(response)
+                      if (response.hasOwnProperty('errorMessage')){
+                        console.log("error!") 
+                        $("#errorModal .modal-body").html("");
+                        $('#errorModal .modal-body').prepend(`<p><strong>Oops!</strong></p><p>There's been an error.</p>`)
+                        $("#spinner").remove();
+                        $('button').prop('disabled', false);
+                        $('#errorModal').modal('show');
+                      }
+                      else{
+                        $("#messageModal .modal-body").html("");
+                        $('#messageModal .modal-body').prepend(`<p><strong>Done!</strong></p><p>Your paper has been successfully submitted. Here's the link below:</p><p><a href="${response.body.url}">${response.body.url}</a></p>`)
                         $("#spinner").remove();
                         $('button').prop('disabled', false);
                         $('#messageModal').modal('show');
-                        console.log('Done!')
+                      }
                     },
                     error: function(){
                         console.log("error!") 

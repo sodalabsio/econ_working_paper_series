@@ -113,15 +113,14 @@
       
         <h4 class="card-title text-center">
             <img src="assets/img/logo.png" alt="logo" width="60" height="60"/>
-            Monash Econ Working Paper Series
-        
+            Monash Econ Working Paper Series <sup>[Beta]</sup>
         </h4>
 
         <hr></hr>
       
       <div id="msg"></div>
-      <p>👉 Please fill the form below and submit your working paper for it to be automatically processed and added to the Monash Econ RePEc archive. 
-        Note that all fields are mandatory (<strong style="color: red;">*</strong>).</p>
+      <p>📝 Please fill the form below and submit your working paper for it to be automatically processed and added to the Monash Econ RePEc archive. 
+        Note that all fields are mandatory.</p>
       </br>
       <!-- method="post" enctype="multipart/form-data"  -->
       <form id="wpForm" method="POST" novalidate>
@@ -137,20 +136,21 @@
           <small class="form-text text-muted">Please enter the title of your paper.</small>
           <div class="valid-feedback">Looks good!</div>
         </div>
-        <div class="form-group">
+        <!-- <div class="form-group">
           <strong style="color: red;">* </strong>
           <label for="email">Email address</label>
           <input type="email" class="form-control" id="email" required>
           <small class="form-text text-muted">Please provide the first author's email address.</small>
           <div class="valid-feedback">Looks good!</div>
-          <!-- <div class="invalid-feedback">Please provide a proper email address.</div> -->
-        </div>
+        </div> -->
         <div class="form-group">
           <strong style="color: red;">* </strong>
-          <label for="author">Author(s)</label>
+          <label for="author">Author(s) details</label>
           <div class="dynamic-wrap">
             <div class="entry input-group">
-              <input type="text" class="form-control" name="fields[]" pattern="^[a-zA-ZàáâäãåąčćęèéêëėįìíîïłńòóôöõøùúûüųūÿýżźñçčšžÀÁÂÄÃÅĄĆČĖĘÈÉÊËÌÍÎÏĮŁŃÒÓÔÖÕØÙÚÛÜŲŪŸÝŻŹÑßÇŒÆČŠŽ∂ð ,.'-]+$" required>
+              <input type="text" class="form-control" name="fullname" placeholder="Full name" pattern="^[a-zA-ZàáâäãåąčćęèéêëėįìíîïłńòóôöõøùúûüųūÿýżźñçčšžÀÁÂÄÃÅĄĆČĖĘÈÉÊËÌÍÎÏĮŁŃÒÓÔÖÕØÙÚÛÜŲŪŸÝŻŹÑßÇŒÆČŠŽ∂ð ,.'-]+$" required>
+              <input type="text" class="form-control" name="affiliation" placeholder="Affiliation" pattern="^[a-zA-Z0-9,._: -/]+$" required>
+              <input type="email" id="email" class="form-control" name="email" placeholder="Email" required>
               <!-- ^[A-Z][a-z]+[\s][A-Z]?[\s]?[A-Z][a-z]+$ -->
               <span class="input-group-btn">
                 <button class="btn btn-primary btn-add" type="button">
@@ -158,18 +158,17 @@
                 </button>
               </span>
               <div class="valid-feedback">Looks good!</div>
-              <div class="invalid-feedback">Please fill author names as for e.g. John R Smith or Jane Doe or Robert Jackson etc.</div>
+              <div class="invalid-feedback">Please provide valid inputs.</div>
             </div>
-            
         </div>
-        <small class="form-text text-muted">Please click on + to add more authors. Names should follow: Firstname Middlename initial (if any) Lastname.</small>
+        <small class="form-text text-muted">Click on + to add more authors.</small>
         
         </div>
         <div class="form-group">
           <strong style="color: red;">* </strong>
           <label for="abstract">Abstract</label>
           <textarea class="form-control" rows="5" id="abstract" pattern="^[a-zA-Z0-9,._: -/]+$" required></textarea>
-          <small class="form-text text-muted">Please paste the abstract of your paper above.</small>
+          <small class="form-text text-muted">Please enter the abstract of your paper above.</small>
           <div class="valid-feedback">Looks good!</div>
           <!-- <div class="invalid-feedback">Please add the abstract of the paper.</div> -->
         </div>
@@ -200,7 +199,7 @@
                 <label class="custom-file-label" for="inputFile">
                 Choose file ..
                 </label>
-                <small class="form-text text-muted">Please upload a PDF file under <b>5 MB</b> in size.</small>
+                <small class="form-text text-muted">Please upload a PDF file under 5 MB in size.</small>
                 <div class="valid-feedback">Looks good!</div>
                 <div class="invalid-feedback">Please upload a PDF version of your paper.</div>
             </div>
