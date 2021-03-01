@@ -8,11 +8,14 @@ import urllib.parse
 import datetime
 from PyPDF2 import PdfFileMerger, PdfFileReader
 
+SOURCE_BUCKET = 'monash-econ'
 BUCKET = 'monash-econ-wps'
 DIR_LIST_PATH = 'RePEc/mos/moswps/index.html'
 # TEMPLATE_PATH = 'template/wp_cover_static.png'
 TEMPLATE_URL= 'https://github.com/sodalabsio/econ_working_paper_series/raw/main/monash-econ-wps/template/wp_cover_static.png'
 HANDLE = 'RePEc:mos:moswps'
+TEMP_PATH = 'temp/' 
+META_PATH = "metadata.json"
 
 HTML = """
         <!DOCTYPE html>
@@ -107,6 +110,14 @@ def read_from_bucket(bucket, key, is_json=True):
     if is_json:
       data = json.loads(data)
     return data
+    
+def update_dir(file, wpn):
+    """Updates the HTML dir file (index.html)"""
+    temp = '<br><a href="{}">{}</a>'
+    html_comps = [element for element in file.split("\n") if element.strip() != ""]
+    for comp in ['.pdf', '.rdf']:
+        html_comps.insert(-1, temp.format(wpn + comp, wpn + comp))
+    return "\n".join(html_comps)
 
 def postprocess(file, file_path, config, **kwargs):
     """Method to postprocess HTML and merge with PDF"""
@@ -117,12 +128,20 @@ def postprocess(file, file_path, config, **kwargs):
     keywords = kwargs.get('keyword')
     jel_codes = kwargs.get('jel_code') 
     authors_inline = ""
-    for i, author in enumerate(authors):
-        if i != len(authors)-1:
-            authors_inline += f"{author['name']}"
-            if i != len(authors)-2: authors_inline += ", "
-        else:
-            authors_inline += f" and {author['name']}"
+    
+    if len(authors) > 1:
+        
+        authors_inline = ", ".join([a['name'] for a in authors[:-1]]) + f" and {authors[-1]['name']}"
+    else:
+        authors_inline = authors[0]['name']
+    
+    # for i, author in enumerate(authors):
+    #     if i != len(authors)-1:
+    #         authors_inline += f"{author['name']}"
+    #         if i != len(authors)-2: 
+    #             authors_inline += ", "
+    #     else:
+    #         authors_inline += f" and {author['name']}"
     
     affiliation = ""
     for i, author in enumerate(authors):
@@ -201,56 +220,109 @@ def create_rdf(link, handle, **kwargs):
 def lambda_handler(event, context):
     data = event['content']
     logger.info(data.keys())
-    wpn = data['wpn']
-    title = data['title']
-    author = data['author'].split('|') # | is used as the delimiter
-    author = [dict(name=author[i], affiliation=author[i+1], email=author[i+2]) for
-                    i in range(0, len(author), 3)]
-    keyword = data['keyword']
-    jel_code = data['jel_code']
-    abstract = urllib.parse.unquote(data['abstract']) # decodeURI
-    file = data['file']
-    pub_online = data['pub_online']
-    logger.info('data received..')
+    mode = data['mode']
     
-    config = pdfkit.configuration(wkhtmltopdf='/opt/bin/wkhtmltopdf')
-    logger.info('binaries found..')
+    if mode == 'upload':
     
-    # dir_list_file = read_from_bucket(BUCKET, DIR_LIST_PATH, False)
-    path = HANDLE.replace(':', '/') + f'/{wpn}'
-    
-    file_path = path + '.pdf'
-    rdf_path = path + '.rdf'
-    
-    metadata = {'wpn' : wpn,
-                'title': title,
-                'year': int(wpn.split('-')[0]),
-                'author': author,
-                'keyword' : keyword,
-                'jel_code': jel_code,
-                'abstract' : abstract,
-                'pub_online': pub_online
-                }
-    output, link = postprocess(file, file_path, config, **metadata)
-    rdf = create_rdf(link, HANDLE, **metadata) # create RDF
-    try:
-        # upload processed PDF
-        s3.put_object(Bucket=BUCKET, Key=file_path, Body=output, ContentType='application/pdf')
-        # upload RDF file - to previous FTP location
-        s3.put_object(Bucket=BUCKET, Key=rdf_path, Body=rdf)
+        wpn = data['wpn']
+        title = data['title']
+        author = data['author'].split('|') # | is used as the delimiter
+        author = [dict(name=author[i], affiliation=author[i+1], email=author[i+2]) for
+                        i in range(0, len(author), 3)]
+        keyword = data['keyword']
+        jel_code = data['jel_code']
+        abstract = urllib.parse.unquote(data['abstract']) # decodeURI
+        file = read_from_bucket(bucket=BUCKET, key=TEMP_PATH + wpn, is_json=False)
+        pub_online = data['pub_online']
+        logger.info('data received..')
         
-        response = {
-        "statusCode": 200,
-        "headers": {
-        "Access-Control-Allow-Origin" : "*", # Required for CORS support to work
-        "Access-Control-Allow-Credentials" : True # Required for cookies, authorization headers with HTTPS 
-        },
-        "body": {
-            'msg': 'File: {} successfully processed.'.format(wpn),
-            'url' : link
+        config = pdfkit.configuration(wkhtmltopdf='/opt/bin/wkhtmltopdf')
+        logger.info('binaries found..')
+        
+        # dir_list_file = read_from_bucket(BUCKET, DIR_LIST_PATH, False)
+        meta = read_from_bucket(SOURCE_BUCKET, META_PATH, True)
+        dir_list_file = read_from_bucket(BUCKET, DIR_LIST_PATH, False)
+        path = meta['handle'].replace(':', '/') + '/' + wpn
+        # path = HANDLE.replace(':', '/') + f'/{wpn}'
+        
+        file_path = path + '.pdf'
+        rdf_path = path + '.rdf'
+        
+        metadata = {'wpn' : wpn,
+                    'title': title,
+                    'year': int(wpn.split('-')[0]),
+                    'author': author,
+                    'keyword' : keyword,
+                    'jel_code': jel_code,
+                    'abstract' : abstract,
+                    'pub_online': pub_online
+                    }
+        meta['papers'].append(metadata)
+        output, link = postprocess(file, file_path, config, **metadata)
+        rdf = create_rdf(link, HANDLE, **metadata) # create RDF
+        dir_list_file = update_dir(dir_list_file, wpn)
+        try:
+            # upload processed PDF
+            s3.put_object(Bucket=BUCKET, Key=file_path, Body=output, ContentType='application/pdf')
+            # upload RDF file
+            s3.put_object(Bucket=BUCKET, Key=rdf_path, Body=rdf, ContentType='text/plain;charset=utf-8')
+            # upload the index.html file
+            s3.put_object(Bucket=BUCKET, Key=DIR_LIST_PATH, Body=dir_list_file, ContentType='text/html;charset=utf-8')
+            # update metadata.json
+            s3.put_object(Bucket=SOURCE_BUCKET, Key=META_PATH, Body=json.dumps(meta), ContentType='application/json;charset=utf-8')
+            
+            response = {
+            "statusCode": 200,
+            "headers": {
+            "Access-Control-Allow-Origin" : "*", # Required for CORS support to work
+            "Access-Control-Allow-Credentials" : True # Required for cookies, authorization headers with HTTPS 
+            },
+            "body": {
+                'msg': 'File: {} successfully processed.'.format(wpn),
+                'url' : link
+              }
+            }
+            
+        except Exception as e:
+            raise IOError(e)
+    
+    elif mode == 'update':
+      
+      wpn = data['wpn']
+      # file = data['file']
+      # read the temp file from S3
+      file = read_from_bucket(bucket=BUCKET, key=TEMP_PATH + wpn, is_json=False)
+      
+      logger.info('data received..')
+      
+      config = pdfkit.configuration(wkhtmltopdf='/opt/bin/wkhtmltopdf')
+      logger.info('binaries found..')
+      
+      meta = read_from_bucket(SOURCE_BUCKET, META_PATH, True)
+      path = meta['handle'].replace(':', '/') + '/' + wpn
+      file_path = path + '.pdf'
+      
+      # fetch the metadata
+      metadata = list(filter(lambda x: (x['wpn'] == wpn), meta['papers']))[0]
+      
+      output, link = postprocess(file, file_path, config, **metadata)
+      
+      try:
+          # upload processed PDF
+          s3.put_object(Bucket=BUCKET, Key=file_path, Body=output, ContentType='application/pdf')
+          
+      except Exception as e:
+          raise IOError(e)
+      response = {
+          "statusCode": 200,
+          "headers": {
+          "Access-Control-Allow-Origin" : "*", # Required for CORS support to work
+          "Access-Control-Allow-Credentials" : True # Required for cookies, authorization headers with HTTPS 
+          },
+          "body": {
+              'msg': f'File: {wpn} successfully processed.',
+              'url' : link
           }
-        }
-        return response
+      }
         
-    except Exception as e:
-        raise IOError(e)
+    return response
